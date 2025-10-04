@@ -7,7 +7,11 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM services ORDER BY id');
-    res.json(result.rows);
+    res.json({
+      success: true,
+      services: result.rows,
+      count: result.rows.length
+    });
   } catch (error) {
     console.error('Error fetching services:', error);
     res.status(500).json({ error: 'Internal server error' });
