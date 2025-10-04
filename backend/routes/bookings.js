@@ -87,16 +87,40 @@ router.post('/', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const user_id = req.user.userId;
+    const user_role = req.user.role;
 
-    const result = await pool.query(`
-      SELECT b.*, s.name as service_name, s.price as service_price, s.description as service_description
-      FROM bookings b
-      JOIN services s ON b.service_id = s.id
-      WHERE b.user_id = $1
-      ORDER BY b.created_at DESC
-    `, [user_id]);
+    let query;
+    let params = [];
 
-    res.json(result.rows);
+    if (user_role === 'admin') {
+      // Admin gets all bookings
+      query = `
+        SELECT b.*, s.name as service_name, s.price as service_price, s.description as service_description,
+               u.full_name as customer_name, u.phone as customer_phone, u.email as customer_email
+        FROM bookings b
+        JOIN services s ON b.service_id = s.id
+        LEFT JOIN users u ON b.user_id = u.id
+        ORDER BY b.created_at DESC
+      `;
+    } else {
+      // Regular user gets only their bookings
+      query = `
+        SELECT b.*, s.name as service_name, s.price as service_price, s.description as service_description
+        FROM bookings b
+        JOIN services s ON b.service_id = s.id
+        WHERE b.user_id = $1
+        ORDER BY b.created_at DESC
+      `;
+      params = [user_id];
+    }
+
+    const result = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      bookings: result.rows,
+      count: result.rows.length
+    });
 
   } catch (error) {
     console.error('Error fetching bookings:', error);
@@ -104,7 +128,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update booking status
+// Update booking status (PATCH for regular users)
 router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -130,6 +154,48 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     );
 
     res.json({
+      message: 'Booking updated successfully',
+      booking: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update booking status (PUT for admin)
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const user_role = req.user.role;
+
+    // Only admin can use PUT method
+    if (user_role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Validate status
+    const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Check if booking exists
+    const bookingCheck = await pool.query('SELECT * FROM bookings WHERE id = $1', [id]);
+    if (bookingCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    // Update booking status (admin can update any booking)
+    const result = await pool.query(
+      'UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    res.json({
+      success: true,
       message: 'Booking updated successfully',
       booking: result.rows[0]
     });
