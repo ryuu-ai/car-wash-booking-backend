@@ -19,9 +19,23 @@ const initDatabase = async () => {
         password_hash VARCHAR(255) NOT NULL,
         full_name VARCHAR(100) NOT NULL,
         phone VARCHAR(20) NOT NULL,
+        role VARCHAR(20) DEFAULT 'customer',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    // Create default admin user if it doesn't exist
+    const bcrypt = require('bcryptjs');
+    const adminCheck = await client.query('SELECT COUNT(*) FROM users WHERE role = $1', ['admin']);
+    if (parseInt(adminCheck.rows[0].count) === 0) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await client.query(`
+        INSERT INTO users (username, email, password_hash, full_name, phone, role) VALUES
+        ('admin', 'admin@gmail.com', $1, 'System Administrator', '09123456789', 'admin')
+      `, [hashedPassword]);
+      console.log('Default admin user created');
+      console.log('Admin login: admin@gmail.com / admin123');
+    }
 
     // Create services table
     await client.query(`
