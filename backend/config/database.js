@@ -19,22 +19,35 @@ const initDatabase = async () => {
         password_hash VARCHAR(255) NOT NULL,
         full_name VARCHAR(100) NOT NULL,
         phone VARCHAR(20) NOT NULL,
-        role VARCHAR(20) DEFAULT 'customer',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
+    // Add role column if it doesn't exist (migration for existing databases)
+    try {
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'customer'
+      `);
+      console.log('Role column added/verified');
+    } catch (error) {
+      console.log('Role column migration error (might already exist):', error.message);
+    }
+
     // Create default admin user if it doesn't exist
     const bcrypt = require('bcryptjs');
-    const adminCheck = await client.query('SELECT COUNT(*) FROM users WHERE role = $1', ['admin']);
-    if (parseInt(adminCheck.rows[0].count) === 0) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await client.query(`
-        INSERT INTO users (username, email, password_hash, full_name, phone, role) VALUES
-        ('admin', 'admin@gmail.com', $1, 'System Administrator', '09123456789', 'admin')
-      `, [hashedPassword]);
-      console.log('Default admin user created');
-      console.log('Admin login: admin@gmail.com / admin123');
+    try {
+      const adminCheck = await client.query('SELECT COUNT(*) FROM users WHERE role = $1', ['admin']);
+      if (parseInt(adminCheck.rows[0].count) === 0) {
+        const hashedPassword = await bcrypt.hash('admin123', 10);
+        await client.query(`
+          INSERT INTO users (username, email, password_hash, full_name, phone, role) VALUES
+          ('admin', 'admin@gmail.com', $1, 'System Administrator', '09123456789', 'admin')
+        `, [hashedPassword]);
+        console.log('Default admin user created');
+        console.log('Admin login: admin@gmail.com / admin123');
+      }
+    } catch (error) {
+      console.log('Admin user creation error:', error.message);
     }
 
     // Create services table
