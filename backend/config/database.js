@@ -41,6 +41,13 @@ const initDatabase = async () => {
         service_id INTEGER REFERENCES services(id),
         booking_date DATE NOT NULL,
         booking_time TIME NOT NULL,
+        customer_name VARCHAR(100),
+        customer_phone VARCHAR(20),
+        customer_email VARCHAR(100),
+        car_type VARCHAR(50),
+        license_plate VARCHAR(20),
+        car_color VARCHAR(30),
+        notes TEXT,
         status VARCHAR(20) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -51,9 +58,14 @@ const initDatabase = async () => {
     if (parseInt(servicesCheck.rows[0].count) === 0) {
       await client.query(`
         INSERT INTO services (name, price, description) VALUES
-        ('Exterior Wash', 500, 'Complete exterior car wash and wax'),
-        ('Interior Wash', 500, 'Deep interior cleaning and vacuum'),
-        ('Full Wash', 1000, 'Complete exterior and interior car wash')
+        ('Basic Wash', 200, 'Simple exterior rinse and soap cleaning'),
+        ('Express Wash', 300, 'Quick exterior wash and rinse (15 minutes)'),
+        ('Interior Cleaning', 400, 'Vacuum, dashboard cleaning, and seat wiping'),
+        ('Standard Wash', 500, 'Complete exterior wash with soap and wax'),
+        ('Engine Bay Cleaning', 600, 'Professional engine compartment cleaning'),
+        ('Full Service Wash', 700, 'Exterior wash + interior cleaning combo'),
+        ('Deep Cleaning', 800, 'Thorough interior and exterior deep cleaning'),
+        ('Premium Detailing', 1000, 'Complete premium cleaning with wax and protection')
       `);
       console.log('Default services inserted');
     }
