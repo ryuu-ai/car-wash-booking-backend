@@ -49,4 +49,60 @@ router.post('/services', async (req, res) => {
   }
 });
 
+// Add missing columns to bookings table
+router.post('/fix-bookings', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    
+    console.log('Adding missing columns to bookings table...');
+    
+    // Add columns if they don't exist
+    const columns = [
+      { name: 'customer_name', type: 'VARCHAR(100)' },
+      { name: 'customer_phone', type: 'VARCHAR(20)' },
+      { name: 'customer_email', type: 'VARCHAR(100)' },
+      { name: 'car_type', type: 'VARCHAR(50)' },
+      { name: 'license_plate', type: 'VARCHAR(20)' },
+      { name: 'car_color', type: 'VARCHAR(30)' },
+      { name: 'notes', type: 'TEXT' }
+    ];
+    
+    for (const col of columns) {
+      try {
+        await client.query(`
+          ALTER TABLE bookings 
+          ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}
+        `);
+        console.log(`Column ${col.name} added/verified`);
+      } catch (err) {
+        console.log(`Column ${col.name} might already exist:`, err.message);
+      }
+    }
+    
+    // Verify the table structure
+    const tableInfo = await client.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'bookings'
+      ORDER BY ordinal_position
+    `);
+    
+    client.release();
+    
+    res.json({
+      success: true,
+      message: 'Bookings table columns fixed!',
+      columns: tableInfo.rows
+    });
+    
+  } catch (err) {
+    console.error('Error fixing bookings table:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fix bookings table',
+      details: err.message 
+    });
+  }
+});
+
 module.exports = router;
