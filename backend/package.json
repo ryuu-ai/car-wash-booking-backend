@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "update-services": "node scripts/update-services.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["car-wash", "booking", "api", "express", "postgresql"],
